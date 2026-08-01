@@ -14,7 +14,14 @@ namespace server
             builder.Services.AddControllers();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
-            builder.Services.AddSignalR();
+
+            var signalRBuilder = builder.Services.AddSignalR();
+
+            var signalRConnectionString = builder.Configuration.GetConnectionString("SignalR")!;
+            if (!string.IsNullOrEmpty(signalRConnectionString))
+            {
+                signalRBuilder.AddAzureSignalR(signalRConnectionString);
+            }
 
             var allowedOrigins = builder.Configuration
                 .GetSection("Cors:AllowedOrigins")
