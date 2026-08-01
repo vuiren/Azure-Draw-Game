@@ -1,0 +1,10 @@
+services:
+  api:
+    build: ./server
+    ports:
+      - "5000:8080"
+
+  client:
+    build: ./client
+    ports:
+      - "5173:80"
