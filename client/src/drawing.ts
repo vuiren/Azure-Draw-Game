@@ -19,10 +19,10 @@ interface Elements {
 
 // ---------- Config ----------
 
-const API_BASE_URL = "http://127.0.0.1:5296";
-const DOT_RADIUS = 4;
-const POINTS_SEND_INTERVAL_MS = 10;
-const POINTER_SEND_INTERVAL_MS = 2;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const DOT_RADIUS = Number(import.meta.env.VITE_DOT_RADIUS);
+const POINTS_SEND_INTERVAL_MS = Number(import.meta.env.VITE_POINTS_SEND_INTERVAL_MS);
+const POINTER_SEND_INTERVAL_MS = Number(import.meta.env.VITE_POINTER_SEND_INTERVAL_MS);
 
 // ---------- State ----------
 
