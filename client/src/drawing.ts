@@ -104,13 +104,11 @@ function drawWithStyle(ctx: CanvasRenderingContext2D, color: string, draw: () =>
 }
 
 function drawPointer(
-    cursorCanvas: HTMLCanvasElement,
     cursorCtx: CanvasRenderingContext2D,
     dotColor: string,
     point: Point,
     userName: string
 ) {
-    cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
     drawWithStyle(cursorCtx, dotColor, () => drawDot(cursorCtx, point.x, point.y));
 
     if (userName) {
@@ -167,7 +165,7 @@ function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
 function redrawAllPointers(cursorCanvas: HTMLCanvasElement, cursorCtx: CanvasRenderingContext2D) {
     cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
     for (const [userName, { dotColor, point }] of Object.entries(usersPointers)) {
-        drawPointer(cursorCanvas, cursorCtx, dotColor, point, userName);
+        drawPointer(cursorCtx, dotColor, point, userName);
     }
 }
 
