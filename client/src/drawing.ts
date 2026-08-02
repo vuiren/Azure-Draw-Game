@@ -37,17 +37,115 @@ const usersPointers: Record<string, { dotColor: string; point: Point, userName: 
 
 function renderLayout(root: HTMLElement) {
     root.innerHTML = `
+    <style>
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            font-family: system-ui, -apple-system, sans-serif;
+            padding: 20px;
+        }
+
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            padding: 12px 16px;
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+
+        .toolbar input[type="text"] {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 140px;
+            box-sizing: border-box;
+        }
+
+        .toolbar input[type="button"] {
+            padding: 8px 14px;
+            border: none;
+            border-radius: 6px;
+            background: #2563eb;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .toolbar input[type="button"]:hover {
+            background: #1d4ed8;
+        }
+
+        .toolbar input[id="clearCanvasButton"] {
+            background: #dc2626;
+        }
+
+        .toolbar input[id="clearCanvasButton"]:hover {
+            background: #b91c1c;
+        }
+
+        .toolbar input[type="color"] {
+            width: 40px;
+            height: 36px;
+            padding: 2px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+
+        /*
+         * The wrapper's pixel size must exactly equal the canvas width/height
+         * attributes (800x600). Any border/padding/shadow lives here, on the
+         * wrapper, never on the canvases themselves, so that
+         * canvas.getBoundingClientRect() always reports 800x600 and the
+         * scaleX/scaleY factors in getPoint() stay at 1:1.
+         */
+        .canvas-wrapper {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            border: 1px solid #000;
+            border-radius: 4px;
+        }
+
+        .canvas-wrapper canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 800px;
+            height: 600px;
+            box-sizing: border-box;
+        }
+
+        #drawingCanvas {
+            background: #fff;
+        }
+
+        #cursorCanvas {
+            pointer-events: none;
+        }
+    </style>
+
     <div class="container">
-        <input type="text" id="userNameInput" value="someUser" placeholder="Enter your name" />
-        <input type="text" id="groupNameInput" value="general" placeholder="Enter your room name" />
-        <input type="button" id="changeGroupButton" value="Change Room" />
-        <input type="button" id="clearCanvasButton" value="Clear canvas" />
-        <input type="color" id="picker" value="#000000">
-        <div style="position: relative; width: 800px; height: 600px;">
-            <canvas id="drawingCanvas" width="800" height="600"
-                style="border:1px solid #000000; position: absolute; top:0; left:0;"></canvas>
-            <canvas id="cursorCanvas" width="800" height="600"
-                style="position: absolute; top:0; left:0; pointer-events: none;"></canvas>
+        <div class="toolbar">
+            <input type="text" id="userNameInput" value="someUser" placeholder="Enter your name" />
+            <input type="text" id="groupNameInput" value="general" placeholder="Enter your room name" />
+            <input type="button" id="changeGroupButton" value="Change Room" />
+            <input type="button" id="clearCanvasButton" value="Clear Canvas" />
+            <input type="color" id="picker" value="#000000">
+        </div>
+
+        <div class="canvas-wrapper">
+            <canvas id="drawingCanvas" width="800" height="600"></canvas>
+            <canvas id="cursorCanvas" width="800" height="600"></canvas>
         </div>
     </div>`;
 }
@@ -130,6 +228,15 @@ function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
 
     picker.addEventListener("input", () => {
         ctx.fillStyle = picker.value;
+    });
+
+    canvas.addEventListener("pointerdown", (event) => {
+        if (event.buttons !== 1) return; // only draw while the primary button is held
+        const point = getPoint(event, canvas);
+        drawDot(ctx, point.x, point.y);
+        connection
+            .invoke("ReceiveDot", groupNameInput.value, ctx.fillStyle, [point])
+            .catch((err: Error) => console.error(err));
     });
 
     canvas.addEventListener("pointermove", (event) => {
