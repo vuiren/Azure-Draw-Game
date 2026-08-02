@@ -31,6 +31,8 @@ let pointerTimeoutId = 0;
 let currentGroupName = "general";
 const usersPointers: Record<string, { dotColor: string; point: Point }> = {};
 
+
+
 // ---------- Setup ----------
 
 function renderLayout(root: HTMLElement) {
