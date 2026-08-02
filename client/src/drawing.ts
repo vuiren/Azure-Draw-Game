@@ -80,10 +80,14 @@ function createConnection(): signalR.HubConnection {
 
 function getPoint(event: PointerEvent, canvas: HTMLCanvasElement): Point {
     const rect = canvas.getBoundingClientRect();
-    return {
-        x: event.clientX - rect.left,
-        y: event.clientY - rect.top,
-    };
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    let x = (event.clientX - rect.left) * scaleX;
+    let y = (event.clientY - rect.top) * scaleY;
+    // Round and clamp to canvas bounds
+    x = Math.min(Math.max(Math.round(x), 0), canvas.width - 1);
+    y = Math.min(Math.max(Math.round(y), 0), canvas.height - 1);
+    return { x, y };
 }
 
 function clearCanvas(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement) {
