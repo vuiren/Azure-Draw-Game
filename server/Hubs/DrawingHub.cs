@@ -58,15 +58,20 @@ namespace server.Hubs
             await Clients.GroupExcept(groupName, Context.ConnectionId).SendAsync("ReceiveDot", colorCode, points);
         }
 
-        public async Task UpdateUserPointer(string groupName, string colorCode, Point point)
+        public async Task UpdateUserPointer(string groupName, string userName, string colorCode, Point point)
         {
-            await Clients.GroupExcept(groupName, Context.ConnectionId).SendAsync("UpdateUserPointer", Context.ConnectionId, colorCode, point);
+            await Clients.GroupExcept(groupName, Context.ConnectionId).SendAsync("UpdateUserPointer", Context.ConnectionId, userName, colorCode, point);
         }
 
         public async Task ClearCanvas(string groupName)
         {
             await _db.KeyDeleteAsync(GetRoomKey(groupName));
             await Clients.Group(groupName).SendAsync("ClearCanvas");
+        }
+
+        public async Task RemovePointer()
+        {
+            await Clients.GroupExcept(GeneralRoomName, Context.ConnectionId).SendAsync("RemovePointer", Context.ConnectionId);
         }
 
         // ---------- Loading history ----------
@@ -99,6 +104,12 @@ namespace server.Hubs
             await SendDotsToCaller(GeneralRoomName);
 
             await base.OnConnectedAsync();
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            await RemovePointer();
+            await base.OnDisconnectedAsync(exception);
         }
     }
 }

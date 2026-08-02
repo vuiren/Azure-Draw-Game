@@ -29,7 +29,7 @@ const POINTER_SEND_INTERVAL_MS = Number(import.meta.env.VITE_POINTER_SEND_INTERV
 let pointsTimeoutId = 0;
 let pointerTimeoutId = 0;
 let currentGroupName = "general";
-const usersPointers: Record<string, { dotColor: string; point: Point }> = {};
+const usersPointers: Record<string, { dotColor: string; point: Point, userName: string }> = {};
 
 
 
@@ -164,7 +164,7 @@ function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
 
 function redrawAllPointers(cursorCanvas: HTMLCanvasElement, cursorCtx: CanvasRenderingContext2D) {
     cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
-    for (const [userName, { dotColor, point }] of Object.entries(usersPointers)) {
+    for (const [, { dotColor, point, userName }] of Object.entries(usersPointers)) {
         drawPointer(cursorCtx, dotColor, point, userName);
     }
 }
@@ -174,8 +174,8 @@ function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
 
     drawingCanvas.addEventListener("pointermove", (event) => {
         const point = getPoint(event, drawingCanvas);
-        if(connection.connectionId === null) return;
-        usersPointers[connection.connectionId] = { dotColor: drawingCtx.fillStyle.toString(), point };
+        if (connection.connectionId === null) return;
+        usersPointers[connection.connectionId] = { dotColor: drawingCtx.fillStyle.toString(), point, userName: userNameInput.value };
         redrawAllPointers(cursorCanvas, cursorCtx);
 
         clearTimeout(pointerTimeoutId);
@@ -186,8 +186,13 @@ function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
         }, POINTER_SEND_INTERVAL_MS);
     });
 
-    connection.on("UpdateUserPointer", (connectionId: string, dotColor: string, point: Point) => {
-        usersPointers[connectionId] = { dotColor, point };
+    connection.on("UpdateUserPointer", (connectionId: string, userName: string, dotColor: string, point: Point) => {
+        usersPointers[connectionId] = { dotColor, point, userName };
+        redrawAllPointers(cursorCanvas, cursorCtx);
+    });
+
+    connection.on("RemovePointer", (connectionId: string) => {
+        delete usersPointers[connectionId];
         redrawAllPointers(cursorCanvas, cursorCtx);
     });
 }
