@@ -15,6 +15,7 @@ interface Elements {
     drawingCtx: CanvasRenderingContext2D;
     cursorCanvas: HTMLCanvasElement;
     cursorCtx: CanvasRenderingContext2D;
+    userListEl: HTMLUListElement;
 }
 
 // ---------- Config ----------
@@ -29,7 +30,8 @@ const POINTER_SEND_INTERVAL_MS = Number(import.meta.env.VITE_POINTER_SEND_INTERV
 let pointsTimeoutId = 0;
 let pointerTimeoutId = 0;
 let currentGroupName = "general";
-const usersPointers: Record<string, { dotColor: string; point: Point, userName: string }> = {};
+let usersPointers: Record<string, { dotColor: string; point: Point, userName: string }> = {}; //key - connectionId
+let roomUsers: Record<string, { userName: string; dotColor: string }> = {}; //key - connectionId
 
 
 
@@ -37,103 +39,6 @@ const usersPointers: Record<string, { dotColor: string; point: Point, userName: 
 
 function renderLayout(root: HTMLElement) {
     root.innerHTML = `
-    <style>
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            font-family: system-ui, -apple-system, sans-serif;
-            padding: 20px;
-        }
-
-        .toolbar {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            padding: 12px 16px;
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-        }
-
-        .toolbar input[type="text"] {
-            padding: 8px 10px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            font-size: 14px;
-            min-width: 140px;
-            box-sizing: border-box;
-        }
-
-        .toolbar input[type="button"] {
-            padding: 8px 14px;
-            border: none;
-            border-radius: 6px;
-            background: #2563eb;
-            color: white;
-            font-size: 14px;
-            cursor: pointer;
-            transition: background 0.15s ease;
-        }
-
-        .toolbar input[type="button"]:hover {
-            background: #1d4ed8;
-        }
-
-        .toolbar input[id="clearCanvasButton"] {
-            background: #dc2626;
-        }
-
-        .toolbar input[id="clearCanvasButton"]:hover {
-            background: #b91c1c;
-        }
-
-        .toolbar input[type="color"] {
-            width: 40px;
-            height: 36px;
-            padding: 2px;
-            border: 1px solid #ccc;
-            border-radius: 6px;
-            cursor: pointer;
-            box-sizing: border-box;
-        }
-
-        /*
-         * The wrapper's pixel size must exactly equal the canvas width/height
-         * attributes (800x600). Any border/padding/shadow lives here, on the
-         * wrapper, never on the canvases themselves, so that
-         * canvas.getBoundingClientRect() always reports 800x600 and the
-         * scaleX/scaleY factors in getPoint() stay at 1:1.
-         */
-        .canvas-wrapper {
-            position: relative;
-            width: 800px;
-            height: 600px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border: 1px solid #000;
-            border-radius: 4px;
-        }
-
-        .canvas-wrapper canvas {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 800px;
-            height: 600px;
-            box-sizing: border-box;
-        }
-
-        #drawingCanvas {
-            background: #fff;
-        }
-
-        #cursorCanvas {
-            pointer-events: none;
-        }
-    </style>
-
     <div class="container">
         <div class="toolbar">
             <input type="text" id="userNameInput" value="someUser" placeholder="Enter your name" />
@@ -143,9 +48,16 @@ function renderLayout(root: HTMLElement) {
             <input type="color" id="picker" value="#000000">
         </div>
 
-        <div class="canvas-wrapper">
-            <canvas id="drawingCanvas" width="800" height="600"></canvas>
-            <canvas id="cursorCanvas" width="800" height="600"></canvas>
+        <div class="workspace">
+            <div class="canvas-wrapper">
+                <canvas id="drawingCanvas" width="800" height="600"></canvas>
+                <canvas id="cursorCanvas" width="800" height="600"></canvas>
+            </div>
+
+            <div class="sidebar">
+                <h3>Connected Users</h3>
+                <ul id="userList" class="user-list"></ul>
+            </div>
         </div>
     </div>`;
 }
@@ -164,6 +76,7 @@ function getElements(): Elements {
         drawingCtx: drawingCanvas.getContext("2d") as CanvasRenderingContext2D,
         cursorCanvas,
         cursorCtx: cursorCanvas.getContext("2d") as CanvasRenderingContext2D,
+        userListEl: document.getElementById("userList") as HTMLUListElement,
     };
 }
 
@@ -176,8 +89,7 @@ function createConnection(): signalR.HubConnection {
 
 // ---------- Drawing helpers ----------
 
-function getPoint(event: PointerEvent, canvas: HTMLCanvasElement): Point {
-    const rect = canvas.getBoundingClientRect();
+function getPoint(rect: DOMRect, event: PointerEvent, canvas: HTMLCanvasElement): Point {
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
     let x = (event.clientX - rect.left) * scaleX;
@@ -220,6 +132,41 @@ function drawPointer(
     }
 }
 
+function escapeHtml(value: string): string {
+    const div = document.createElement("div");
+    div.textContent = value;
+    return div.innerHTML;
+}
+
+function renderUserList(userListEl: HTMLUListElement, selfConnectionId: string | null) {
+    const entries = Object.entries(roomUsers);
+
+    if (entries.length === 0) {
+        userListEl.innerHTML = `<li class="user-list-empty">No one here yet</li>`;
+        return;
+    }
+
+    userListEl.innerHTML = entries
+        .map(([connectionId, { userName, dotColor }]) => {
+            const isSelf = connectionId === selfConnectionId;
+            const label = escapeHtml(userName || "Anonymous");
+            return `
+                <li class="${isSelf ? "self" : ""}">
+                    <span class="user-color-dot" style="background:${dotColor}"></span>
+                    <span>${label}${isSelf ? " (you)" : ""}</span>
+                </li>`;
+        })
+        .join("");
+}
+
+function redrawAllPointers(cursorCanvas: HTMLCanvasElement, cursorCtx: CanvasRenderingContext2D) {
+    cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+    for (const [, { dotColor, point, userName }] of Object.entries(usersPointers)) {
+        drawPointer(cursorCtx, dotColor, point, userName);
+    }
+}
+
+
 // ---------- Feature init ----------
 
 function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
@@ -232,7 +179,8 @@ function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
 
     canvas.addEventListener("pointerdown", (event) => {
         if (event.buttons !== 1) return; // only draw while the primary button is held
-        const point = getPoint(event, canvas);
+        const rect = canvas.getBoundingClientRect();
+        const point = getPoint(rect, event, canvas);
         drawDot(ctx, point.x, point.y);
         connection
             .invoke("ReceiveDot", groupNameInput.value, ctx.fillStyle, [point])
@@ -241,11 +189,11 @@ function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
 
     canvas.addEventListener("pointermove", (event) => {
         if (event.buttons !== 1) return; // only draw while the primary button is held
-
+        const rect = canvas.getBoundingClientRect();
         const events = event.getCoalescedEvents?.() ?? [event];
 
         for (const e of events) {
-            const point = getPoint(e, canvas);
+            const point = getPoint(rect, e, canvas);
             drawDot(ctx, point.x, point.y);
             pointsBuffer.push(point);
         }
@@ -273,18 +221,12 @@ function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
     });
 }
 
-function redrawAllPointers(cursorCanvas: HTMLCanvasElement, cursorCtx: CanvasRenderingContext2D) {
-    cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
-    for (const [, { dotColor, point, userName }] of Object.entries(usersPointers)) {
-        drawPointer(cursorCtx, dotColor, point, userName);
-    }
-}
-
 function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
     const { drawingCanvas, drawingCtx, cursorCanvas, cursorCtx, groupNameInput, userNameInput } = el;
 
     drawingCanvas.addEventListener("pointermove", (event) => {
-        const point = getPoint(event, drawingCanvas);
+        const rect = drawingCanvas.getBoundingClientRect();
+        const point = getPoint(rect, event, drawingCanvas);
         if (connection.connectionId === null) return;
         usersPointers[connection.connectionId] = { dotColor: drawingCtx.fillStyle.toString(), point, userName: userNameInput.value };
         redrawAllPointers(cursorCanvas, cursorCtx);
@@ -309,7 +251,7 @@ function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
 }
 
 function initChangeGroup(connection: signalR.HubConnection, el: Elements) {
-    const { changeGroupButton, groupNameInput, drawingCtx, drawingCanvas, cursorCtx, cursorCanvas } = el;
+    const { changeGroupButton, groupNameInput, drawingCtx, drawingCanvas, cursorCtx, cursorCanvas, userListEl } = el;
 
     changeGroupButton.addEventListener("click", async () => {
         const oldGroupName = currentGroupName;
@@ -320,10 +262,65 @@ function initChangeGroup(connection: signalR.HubConnection, el: Elements) {
         clearCanvas(drawingCtx, drawingCanvas);
         clearCanvas(cursorCtx, cursorCanvas);
 
+        roomUsers = {};
+        usersPointers = {};
+        renderUserList(userListEl, connection.connectionId);
+
         await connection
             .invoke("ChangeGroup", oldGroupName, currentGroupName)
             .catch((err: Error) => console.error(err));
     });
+}
+
+function initUserList(connection: signalR.HubConnection, el: Elements) {
+    const { userListEl, userNameInput, picker, drawingCtx } = el;
+
+    const refresh = () => renderUserList(userListEl, connection.connectionId);
+
+    userNameInput.addEventListener("input", () => {
+        if (!connection.connectionId) return;
+        const existing = roomUsers[connection.connectionId];
+        roomUsers[connection.connectionId] = {
+            dotColor: existing?.dotColor ?? drawingCtx.fillStyle.toString(),
+            userName: userNameInput.value,
+        };
+        refresh();
+    });
+
+    picker.addEventListener("input", () => {
+        if (!connection.connectionId) return;
+        const existing = roomUsers[connection.connectionId];
+        roomUsers[connection.connectionId] = {
+            userName: existing?.userName ?? userNameInput.value,
+            dotColor: picker.value,
+        };
+        refresh();
+    });
+
+    connection.on("UpdateUserPointer", (connectionId: string, userName: string, dotColor: string) => {
+        const oldRecord = roomUsers[connectionId] || { userName: "", dotColor: "" };
+        if (oldRecord.userName === userName && oldRecord.dotColor === dotColor) return; // no change
+
+        roomUsers[connectionId] = { userName, dotColor };
+        refresh();
+    });
+
+    connection.on("RemovePointer", (connectionId: string) => {
+        delete roomUsers[connectionId];
+        refresh();
+    });
+
+    connection.on("JoinedRoom", (connectionId: string) => {
+        roomUsers[connectionId] = { userName: userNameInput.value, dotColor: drawingCtx.fillStyle.toString() };
+        refresh();
+    });
+
+    connection.on("LeftRoom", (connectionId: string) => {
+        delete roomUsers[connectionId];
+        refresh();
+    });
+
+    refresh();
 }
 
 function initClearCanvas(connection: signalR.HubConnection, el: Elements) {
@@ -353,6 +350,7 @@ function initDrawing() {
     initCursorCanvas(connection, el);
     initChangeGroup(connection, el);
     initClearCanvas(connection, el);
+    initUserList(connection, el);
 
     connection
         .start()
