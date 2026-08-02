@@ -34,6 +34,6 @@ jobs:
       - name: Deploy new image to Container App
         run: |
           az containerapp update \
-            --name drawguess-client \
+            --name draw-game-client \
             --resource-group Azure_Draw_Game \
             --image drawgame.azurecr.io/client:${{ github.sha }}
