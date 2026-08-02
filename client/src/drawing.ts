@@ -29,6 +29,7 @@ const POINTER_SEND_INTERVAL_MS = Number(import.meta.env.VITE_POINTER_SEND_INTERV
 let pointsTimeoutId = 0;
 let pointerTimeoutId = 0;
 let currentGroupName = "general";
+const usersPointers: Record<string, { dotColor: string; point: Point }> = {};
 
 // ---------- Setup ----------
 
@@ -161,12 +162,20 @@ function initDrawingCanvas(connection: signalR.HubConnection, el: Elements) {
     });
 }
 
+function redrawAllPointers(cursorCanvas: HTMLCanvasElement, cursorCtx: CanvasRenderingContext2D) {
+    cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+    for (const [userName, { dotColor, point }] of Object.entries(usersPointers)) {
+        drawPointer(cursorCanvas, cursorCtx, dotColor, point, userName);
+    }
+}
+
 function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
     const { drawingCanvas, drawingCtx, cursorCanvas, cursorCtx, groupNameInput, userNameInput } = el;
 
     drawingCanvas.addEventListener("pointermove", (event) => {
         const point = getPoint(event, drawingCanvas);
-        drawPointer(cursorCanvas, cursorCtx, drawingCtx.fillStyle.toString(), point, userNameInput.value);
+        usersPointers[userNameInput.value] = { dotColor: drawingCtx.fillStyle.toString(), point };
+        redrawAllPointers(cursorCanvas, cursorCtx);
 
         clearTimeout(pointerTimeoutId);
         pointerTimeoutId = window.setTimeout(() => {
@@ -177,7 +186,8 @@ function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
     });
 
     connection.on("UpdateUserPointer", (userName: string, dotColor: string, point: Point) => {
-        drawPointer(cursorCanvas, cursorCtx, dotColor, point, userName);
+        usersPointers[userName] = { dotColor, point };
+        redrawAllPointers(cursorCanvas, cursorCtx);
     });
 }
 
