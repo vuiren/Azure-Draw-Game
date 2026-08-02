@@ -47,6 +47,8 @@ namespace server.Hubs
 
         public async Task ReceiveDot(string groupName, string colorCode, Point[] points)
         {
+            Console.WriteLine($"[WRITE] Key: '{GetRoomKey(groupName)}'");
+
             var dot = new Dot { ColorCode = colorCode, Points = points };
             string json = JsonSerializer.Serialize(dot);
 
@@ -77,6 +79,9 @@ namespace server.Hubs
 
         private async Task<Dot[]> LoadDots(string groupName)
         {
+            string key = GetRoomKey(groupName);
+            Console.WriteLine($"[READ] Key: '{key}'");
+
             RedisValue[] entries = await _db.ListRangeAsync(GetRoomKey(groupName));
 
             return entries
