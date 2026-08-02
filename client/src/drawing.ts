@@ -174,7 +174,8 @@ function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
 
     drawingCanvas.addEventListener("pointermove", (event) => {
         const point = getPoint(event, drawingCanvas);
-        usersPointers[userNameInput.value] = { dotColor: drawingCtx.fillStyle.toString(), point };
+        if(connection.connectionId === null) return;
+        usersPointers[connection.connectionId] = { dotColor: drawingCtx.fillStyle.toString(), point };
         redrawAllPointers(cursorCanvas, cursorCtx);
 
         clearTimeout(pointerTimeoutId);
@@ -185,8 +186,8 @@ function initCursorCanvas(connection: signalR.HubConnection, el: Elements) {
         }, POINTER_SEND_INTERVAL_MS);
     });
 
-    connection.on("UpdateUserPointer", (userName: string, dotColor: string, point: Point) => {
-        usersPointers[userName] = { dotColor, point };
+    connection.on("UpdateUserPointer", (connectionId: string, dotColor: string, point: Point) => {
+        usersPointers[connectionId] = { dotColor, point };
         redrawAllPointers(cursorCanvas, cursorCtx);
     });
 }

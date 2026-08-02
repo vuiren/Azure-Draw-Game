@@ -58,9 +58,9 @@ namespace server.Hubs
             await Clients.GroupExcept(groupName, Context.ConnectionId).SendAsync("ReceiveDot", colorCode, points);
         }
 
-        public async Task UpdateUserPointer(string groupName, string userName, string colorCode, Point point)
+        public async Task UpdateUserPointer(string groupName, string colorCode, Point point)
         {
-            await Clients.GroupExcept(groupName, Context.ConnectionId).SendAsync("UpdateUserPointer", userName, colorCode, point);
+            await Clients.GroupExcept(groupName, Context.ConnectionId).SendAsync("UpdateUserPointer", Context.ConnectionId, colorCode, point);
         }
 
         public async Task ClearCanvas(string groupName)
