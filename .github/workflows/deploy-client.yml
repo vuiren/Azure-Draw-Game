@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - 'client/**'
+    workflow_dispatch:
 
 permissions:
   id-token: write
