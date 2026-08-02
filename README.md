@@ -15,7 +15,7 @@ A real-time collaborative drawing canvas — anyone in a room can draw together 
 ## Tech Stack
 
 **Backend**
-- ASP.NET Core (.NET 9) Web API
+- ASP.NET Core (.NET 10) Web API
 - SignalR for real-time bidirectional communication
 - StackExchange.Redis for stroke persistence and multi-instance state sharing
 
