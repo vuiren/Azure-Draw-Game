@@ -1,0 +1,38 @@
+name: Deploy Client
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client/**'
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push image to ACR
+        run: |
+          az acr login --name drawgame
+          docker build --build-arg VITE_API_URL=${{ secrets.AZURE_API_URL }} -t drawgame.azurecr.io/client:${{ github.sha }} ./client
+          docker push drawgame.azurecr.io/client:${{ github.sha }}
+
+      - name: Deploy new image to Container App
+        run: |
+          az containerapp update \
+            --name drawguess-client \
+            --resource-group Azure_Draw_Game \
+            --image drawgame.azurecr.io/client:${{ github.sha }}
